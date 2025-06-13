@@ -58,8 +58,8 @@ public class MinioService {
      */
     public String uploadFile(MultipartFile file, String objectName) {
         try {
-            createBucket(objectName);
-
+            createBucket(minioConfig.getBucketName()); 
+            
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(minioConfig.getBucketName())
                     .object(objectName)
