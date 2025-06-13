@@ -1,0 +1,11 @@
+minio:
+  endpoint: http://localhost:9000
+  access-key: admin1
+  secret-key: admin123
+  bucket-name: bucket-admin
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
