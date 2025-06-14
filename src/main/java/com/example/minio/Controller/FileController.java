@@ -1,9 +1,12 @@
 package com.example.minio.Controller;
 
+import com.example.minio.config.MinioConfigProperties;
+import com.example.minio.dto.FileUploadDto;
 import com.example.minio.service.MinioService;
 import com.google.common.net.HttpHeaders;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FilenameUtils;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
@@ -11,11 +14,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 @RestController
@@ -29,29 +31,26 @@ public class FileController {
      * Upload file
      */
     @PostMapping("/upload")
-    public ResponseEntity<Map<String, String>> uploadFile(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "objectName", required = false) String objectName) {
+    public ResponseEntity<?> uploadFile(
+            @RequestParam("file") MultipartFile file) {
 
         try {
             if (file.isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(Map.of("error", "File is empty"));
+                throw new IllegalArgumentException("File is empty");
             }
 
-            // Tạo object name nếu không được cung cấp
-            if (objectName == null || objectName.trim().isEmpty()) {
-                objectName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            // Lấy thông tin file
+            String originalFileName = file.getOriginalFilename();
+            if (originalFileName == null) {
+                throw new IllegalArgumentException("Original filename is null");
             }
 
-            String fileUrl = minioService.uploadFile(file, objectName);
+            String fileName = UUID.randomUUID().toString().substring(0, 8) + "-" + file.getOriginalFilename();
+            String fileUrl = minioService.uploadFile(file, fileName);
 
-            Map<String, String> response = new HashMap<>();
-            response.put("message", "File uploaded successfully");
-            response.put("objectName", objectName);
-            response.put("fileUrl", fileUrl);
+            log.info("File uploaded successfully");
 
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(fileUrl);
 
         } catch (Exception e) {
             log.error("Upload failed: {}", e.getMessage());

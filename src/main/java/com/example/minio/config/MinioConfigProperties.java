@@ -9,12 +9,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConfigurationProperties(prefix = "minio")
 @Data
-public class MinioConfig {
+public class MinioConfigProperties {
 
     private String endpoint;
     private String accessKey;
     private String secretKey;
     private String bucketName;
+    private String upload;
+    private String urlFile;
 
     @Bean
     public MinioClient minioClient() {

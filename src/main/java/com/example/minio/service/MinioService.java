@@ -1,9 +1,10 @@
 package com.example.minio.service;
 
-import com.example.minio.config.MinioConfig;
+import com.example.minio.config.MinioConfigProperties;
 import io.minio.*;
 import io.minio.http.Method;
 import io.minio.messages.Item;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,48 +21,40 @@ import java.util.concurrent.TimeUnit;
 public class MinioService {
 
     private final MinioClient minioClient;
-    private final MinioConfig minioConfig;
+    private final MinioConfigProperties minioConfigProperties;
 
     /**
      * Kiểm tra bucket có tồn tại không
      */
-    public boolean bucketExists(String bucketName) {
+    @PostConstruct
+    public void initializeBucket() {
         try {
-            return minioClient.bucketExists(BucketExistsArgs.builder()
-                    .bucket(bucketName)
+            String bucket = minioConfigProperties.getBucketName();
+            boolean found = minioClient.bucketExists(BucketExistsArgs.builder()
+                    .bucket(bucket)
                     .build());
-        } catch (Exception e) {
-            log.error("Error checking bucket existence: {}", e.getMessage());
-            return false;
-        }
-    }
 
-    /**
-     * Tạo bucket mới
-     */
-    public void createBucket(String bucketName) {
-        try {
-            if (!bucketExists(bucketName)) {
+            // Tạo mới khi 0 ton tai
+            if (!found) {
                 minioClient.makeBucket(MakeBucketArgs.builder()
-                        .bucket(bucketName)
+                        .bucket(bucket)
                         .build());
-                log.info("Bucket {} created successfully", bucketName);
+
+                log.info("Bucket '{}' created successfully", bucket);
             }
+
         } catch (Exception e) {
-            log.error("Error creating bucket: {}", e.getMessage());
-            throw new RuntimeException("Could not create bucket", e);
+            log.error("Error initializing Minio Bucket", e);
         }
     }
 
     /**
-     * Upload file
+     * Upload file lên MinIO
      */
     public String uploadFile(MultipartFile file, String objectName) {
         try {
-            createBucket(minioConfig.getBucketName()); 
-            
             minioClient.putObject(PutObjectArgs.builder()
-                    .bucket(minioConfig.getBucketName())
+                    .bucket(minioConfigProperties.getBucketName())
                     .object(objectName)
                     .stream(file.getInputStream(), file.getSize(), -1)
                     .contentType(file.getContentType())
@@ -70,6 +63,7 @@ public class MinioService {
             log.info("File {} uploaded successfully", objectName);
 
             return getFileUrl(objectName);
+
         } catch (Exception e) {
             log.error("Error uploading file: {}", e.getMessage());
             throw new RuntimeException("Could not upload file", e);
@@ -82,7 +76,7 @@ public class MinioService {
     public InputStream downloadFile(String objectName) {
         try {
             return minioClient.getObject(GetObjectArgs.builder()
-                    .bucket(minioConfig.getBucketName())
+                    .bucket(minioConfigProperties.getBucketName())
                     .object(objectName)
                     .build());
         } catch (Exception e) {
@@ -97,10 +91,12 @@ public class MinioService {
     public void deleteFile(String objectName) {
         try {
             minioClient.removeObject(RemoveObjectArgs.builder()
-                    .bucket(minioConfig.getBucketName())
+                    .bucket(minioConfigProperties.getBucketName())
                     .object(objectName)
                     .build());
+
             log.info("File {} deleted successfully", objectName);
+
         } catch (Exception e) {
             log.error("Error deleting file: {}", e.getMessage());
             throw new RuntimeException("Could not delete file", e);
@@ -115,7 +111,7 @@ public class MinioService {
             List<String> files = new ArrayList<>();
             Iterable<Result<Item>> results = minioClient.listObjects(
                     ListObjectsArgs.builder()
-                            .bucket(minioConfig.getBucketName())
+                            .bucket(minioConfigProperties.getBucketName())
                             .build());
 
             for (Result<Item> result : results) {
@@ -135,7 +131,7 @@ public class MinioService {
         try {
             return minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
                     .method(Method.GET)
-                    .bucket(minioConfig.getBucketName())
+                    .bucket(minioConfigProperties.getBucketName())
                     .object(objectName)
                     .expiry(60, TimeUnit.MINUTES)
                     .build());
@@ -151,7 +147,7 @@ public class MinioService {
     public StatObjectResponse getFileInfo(String objectName) {
         try {
             return minioClient.statObject(StatObjectArgs.builder()
-                    .bucket(minioConfig.getBucketName())
+                    .bucket(minioConfigProperties.getBucketName())
                     .object(objectName)
                     .build());
         } catch (Exception e) {
